@@ -79,13 +79,13 @@ This guide provides step-by-step instructions for testing all the key functional
 ## Test 3: Availability Checking
 
 ### Test 3.1: Check Current Availability
-- **Request**: `GET {{base_url}}/parking-lots/{{parking_lot_id}}/availability?vehicle_type=car`
+- **Request**: `GET {{base_url}}/parking-lots/{{parking_lot_id}}/check-availability?vehicle_type=car`
 - **Headers**: `Authorization: Bearer {{token1}}`
 - **Expected Response**: Availability information for cars at the current time
 
 ### Test 3.2: Check Future Availability
 - Create a date 2 hours from now in ISO format (e.g., `2023-06-15T14:00:00.000Z`)
-- **Request**: `GET {{base_url}}/parking-lots/{{parking_lot_id}}/availability?vehicle_type=car&start_time=2023-06-15T14:00:00.000Z`
+- **Request**: `GET {{base_url}}/parking-lots/{{parking_lot_id}}/check-availability?vehicle_type=car&start_time=2023-06-15T14:00:00.000Z`
 - **Headers**: `Authorization: Bearer {{token1}}`
 - **Expected Response**: Projected availability for cars at the future time
 
@@ -181,21 +181,6 @@ This guide provides step-by-step instructions for testing all the key functional
 - **Request**: `POST {{base_url}}/reservations/<ID from previous step>/cancel`
 - **Headers**: `Authorization: Bearer {{token1}}`
 - **Expected Response**: Updated reservation with status "cancelled"
-
-## Test 7: Concurrent Bookings
-
-This test is difficult to perform manually in Postman, but you can:
-
-1. Create a Postman Collection Runner with multiple iterations of the same request
-2. Or use the automated test in `functionalTests.js`
-
-## Test 8: Cleanup of Expired Reservations
-
-This is best tested with the automated `cleanupTest.js` script, but you can manually:
-
-1. Create a reservation with a start time in the past
-2. Wait for 1-2 minutes for the cleanup job to run
-3. Check if the reservation status is automatically updated to "cancelled"
 
 ## Verifying Results
 

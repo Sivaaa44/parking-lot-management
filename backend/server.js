@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const cors = require('cors');
 const socketUtil = require('./utils/socketUtil');
 const { setupCleanupInterval } = require('./middlewares/reservationCleanup');
 const { getCurrentISTTime, formatISTDate } = require('./utils/timeUtil');
@@ -42,6 +43,11 @@ io.on('connection', (socket) => {
 const authRoutes = require('./routes/authRoutes');
 const parkingLotRoutes = require('./routes/parkingLotRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
+
+app.use(cors({
+  origin: 'http://localhost:5173', // Vite's default port
+  credentials: true
+}));
 
 // Middleware
 app.use(express.json());

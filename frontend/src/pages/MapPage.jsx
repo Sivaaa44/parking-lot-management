@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ParkingMap from '../components/map/ParkingMap';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const MapPage = () => {
   const { user } = useAuth();
@@ -34,7 +35,9 @@ const MapPage = () => {
       </div>
       
       <div className="bg-white rounded-lg shadow-md p-4">
-        <ParkingMap onSelectLot={handleSelectLot} />
+        <ErrorBoundary>
+          <ParkingMap onSelectLot={handleSelectLot} />
+        </ErrorBoundary>
         
         {selectedLot && (
           <div className="mt-6 p-4 border-t border-gray-200">

@@ -71,7 +71,7 @@ The server will run on http://localhost:3000 by default.
 ### Parking Lots
 - `GET /api/parking-lots/nearby` - Find nearby parking lots (params: lat, lng, radius)
 - `GET /api/parking-lots/:id` - Get details for a specific parking lot
-- `GET /api/parking-lots/:id/check-availability` - Get avialability details for a specific parking lot
+- `GET/POST /api/parking-lots/:id/check-availability` - Get avialability details for a specific parking lot
 
 ### Reservations
 - `POST /api/reservations` - Create a new reservation

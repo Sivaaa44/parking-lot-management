@@ -75,12 +75,6 @@ exports.getNearby = async (req, res) => {
 
         return {
           ...lot.toObject(),
-          distance: getDistanceInKm(
-            lot.location.coordinates[1], 
-            lot.location.coordinates[0], 
-            parseFloat(lat), 
-            parseFloat(lng)
-          ),
           available_spots: {
             car: lot.total_spots.car - (carActiveCount + carPendingCount),
             bike: lot.total_spots.bike - (bikeActiveCount + bikePendingCount)
@@ -100,21 +94,6 @@ exports.getNearby = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-// Helper function (Ensure it's defined in utils or in this file)
-function getDistanceInKm(lat1, lng1, lat2, lng2) {
-  const R = 6371; // Radius of Earth in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLng = (lng2 - lng1) * (Math.PI / 180);
-
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 // Get parking lot by ID with current availability
 exports.getById = async (req, res) => {

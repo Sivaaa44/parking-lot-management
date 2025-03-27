@@ -20,7 +20,7 @@ const parkingLotData = [
       type: 'Point',
       coordinates: [80.2338, 13.0417] // [longitude, latitude]
     },
-    total_spots: { car: 2, bike: 2 },
+    total_spots: { car: 1, bike: 1 },
     rates: {
       car: { first_hour: 50, additional_hour: 30, daily_cap: 300 },
       bike: { first_hour: 20, additional_hour: 10, daily_cap: 100 }
@@ -33,7 +33,7 @@ const parkingLotData = [
       type: 'Point',
       coordinates: [80.2830, 13.0557] // [longitude, latitude]
     },
-    total_spots: { car: 2, bike: 2 },
+    total_spots: { car: 1, bike: 1 },
     rates: {
       car: { first_hour: 60, additional_hour: 40, daily_cap: 350 },
       bike: { first_hour: 30, additional_hour: 15, daily_cap: 150 }
@@ -46,7 +46,7 @@ const parkingLotData = [
       type: 'Point',
       coordinates: [80.2183, 12.9918] // [longitude, latitude]
     },
-    total_spots: { car: 2, bike: 2 },
+    total_spots: { car: 1, bike: 1 },
     rates: {
       car: { first_hour: 30, additional_hour: 20, daily_cap: 250 },
       bike: { first_hour: 15, additional_hour: 10, daily_cap: 120 }
@@ -59,7 +59,7 @@ const parkingLotData = [
       type: 'Point',
       coordinates: [80.2765, 13.0831] // [longitude, latitude]
     },
-    total_spots: { car: 2, bike: 2 },
+    total_spots: { car: 1, bike: 1 },
     rates: {
       car: { first_hour: 40, additional_hour: 25, daily_cap: 280 },
       bike: { first_hour: 20, additional_hour: 10, daily_cap: 120 }
@@ -72,7 +72,7 @@ const parkingLotData = [
       type: 'Point',
       coordinates: [80.2101, 13.0850] // [longitude, latitude]
     },
-    total_spots: { car: 2, bike: 2 },
+    total_spots: { car: 1, bike: 1 },
     rates: {
       car: { first_hour: 35, additional_hour: 20, daily_cap: 240 },
       bike: { first_hour: 15, additional_hour: 10, daily_cap: 100 }
@@ -80,12 +80,6 @@ const parkingLotData = [
   }
 ];
 
-// Sample user data
-const userData = {
-  name: 'Demo User',
-  email: 'user@example.com',
-  password: 'password123'
-};
 
 // Function to seed the database
 async function seedDatabase() {
@@ -109,20 +103,7 @@ async function seedDatabase() {
     // Insert parking lots
     await ParkingLot.insertMany(parkingLotData);
     console.log('Parking lots seeded successfully!');
-    
-    // Create a demo user
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(userData.password, salt);
-    
-    await User.create({
-      name: userData.name,
-      email: userData.email,
-      password_hash
-    });
-    
-    console.log('Demo user created:');
-    console.log(`Email: ${userData.email}`);
-    console.log(`Password: ${userData.password}`);
+  
     
     console.log(`Database seeding completed at ${formatISTDate(getCurrentISTTime())}`);
     

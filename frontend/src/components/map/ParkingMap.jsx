@@ -81,14 +81,20 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
     }
   }, [getUserLocation]);
 
-  // Handle marker click
+  // Update handleMarkerClick to center map on selected lot
   const handleMarkerClick = (lot) => {
-    setActiveMarker(lot._id);
-    onSelectLot(lot);
-    setInfoWindowPosition({
+    const position = {
       lat: lot.location.coordinates[1],
       lng: lot.location.coordinates[0]
-    });
+    };
+    
+    setActiveMarker(lot._id);
+    onSelectLot(lot);
+    
+    if (map) {
+      map.panTo(position);
+      map.setZoom(16); // Zoom in slightly when selecting a lot
+    }
   };
 
   // Handle destination search
@@ -182,24 +188,7 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
               position={position}
               onCloseClick={() => setActiveMarker(null)}
             >
-              <div className="min-w-[200px] p-2">
-                <h3 className="font-bold text-gray-900">{lot.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{lot.address}</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-600">Cars:</span>
-                    <span className="font-medium text-green-600 ml-1">
-                      {lot.available_spots.car}/{lot.total_spots.car}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Bikes:</span>
-                    <span className="font-medium text-green-600 ml-1">
-                      {lot.available_spots.bike}/{lot.total_spots.bike}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {infoWindowContent(lot)}
             </InfoWindow>
           )}
         </Marker>
@@ -299,18 +288,18 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
     <div className="h-full relative">
       {/* Search Bar */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-2xl px-4">
-        <form onSubmit={handleDestinationSearch} className="flex shadow-lg rounded-lg overflow-hidden bg-white">
+        <form onSubmit={handleDestinationSearch} className="map-search flex">
           <input 
             type="text" 
             placeholder="Search for a destination..."
             value={destinationSearch}
             onChange={(e) => setDestinationSearch(e.target.value)}
-            className="flex-1 px-4 py-3 border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="map-search-input flex-1"
           />
           <select 
             value={searchRadius}
             onChange={(e) => setSearchRadius(Number(e.target.value))}
-            className="w-24 px-2 py-3 border-0 border-l border-gray-200 bg-white focus:outline-none"
+            className="w-24 px-2 py-3 border-l border-gray-200 bg-white text-gray-700 focus:outline-none"
           >
             <option value={5}>5 km</option>
             <option value={10}>10 km</option>
@@ -318,7 +307,7 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
           </select>
           <button 
             type="submit" 
-            className="px-6 py-3 bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+            className="btn btn-primary rounded-none px-6"
           >
             Search
           </button>
@@ -326,18 +315,21 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
             <button 
               type="button"
               onClick={handleResetSearch}
-              className="px-4 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="btn btn-secondary rounded-none border-0"
+              title="Clear search"
             >
-              Clear
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           )}
         </form>
       </div>
 
-      {/* Location Button - Now at bottom right */}
+      {/* Location Button */}
       <button
         onClick={getUserLocation}
-        className="absolute bottom-8 right-8 z-10 bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        className="map-control-button absolute bottom-8 right-8 z-10"
         title="Get my location"
       >
         <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,7 +353,14 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
             zoomControl: true,
             zoomControlOptions: {
               position: window.google.maps.ControlPosition.RIGHT_TOP
-            }
+            },
+            styles: [
+              {
+                featureType: "poi",
+                elementType: "labels",
+                stylers: [{ visibility: "off" }]
+              }
+            ]
           }}
         >
           {renderMarkers()}
@@ -370,15 +369,15 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
 
       {/* Loading State */}
       {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-red-50 p-4 rounded-lg shadow-lg">
-          <p className="text-red-600">{error}</p>
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg z-20">
+          <p className="text-red-600 text-sm font-medium">{error}</p>
         </div>
       )}
 
@@ -404,5 +403,27 @@ const ParkingMap = ({ onSelectLot, selectedLot }) => {
     </div>
   );
 };
+
+// Update InfoWindow content in renderMarkers
+const infoWindowContent = (lot) => (
+  <div className="info-window">
+    <h3 className="font-semibold text-gray-900">{lot.name}</h3>
+    <p className="text-sm text-gray-600 mt-1">{lot.address}</p>
+    <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="bg-gray-50 rounded-md p-2 text-center">
+        <span className="text-sm text-gray-600 block">Cars</span>
+        <span className="font-medium text-green-600">
+          {lot.available_spots.car}/{lot.total_spots.car}
+        </span>
+      </div>
+      <div className="bg-gray-50 rounded-md p-2 text-center">
+        <span className="text-sm text-gray-600 block">Bikes</span>
+        <span className="font-medium text-green-600">
+          {lot.available_spots.bike}/{lot.total_spots.bike}
+        </span>
+      </div>
+    </div>
+  </div>
+);
 
 export default ParkingMap;

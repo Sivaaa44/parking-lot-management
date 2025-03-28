@@ -29,31 +29,81 @@ body {
   line-height: 1.5;
 }
 
-/* Common Components */
+/* Button Styles */
 .btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2;
+  @apply px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 text-sm;
 }
 
 .btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50;
+  @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
 }
 
 .btn-secondary {
-  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+  @apply bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 shadow-sm;
 }
 
 .btn-outline {
-  @apply border border-gray-300 text-gray-700 hover:bg-gray-50;
+  @apply border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white;
 }
 
+/* Input Styles */
 .input {
-  @apply w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200;
+  @apply w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200 text-gray-900 bg-white;
 }
 
+/* Card Styles */
 .card {
-  @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  @apply bg-white rounded-xl shadow-sm border border-gray-200;
 }
 
+/* Text Colors */
+.text-primary {
+  @apply text-gray-900;
+}
+
+.text-secondary {
+  @apply text-gray-600;
+}
+
+.text-muted {
+  @apply text-gray-500;
+}
+
+/* Map Components */
+.map-search {
+  @apply bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200;
+}
+
+.map-search-input {
+  @apply px-4 py-3 text-gray-900 border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white;
+}
+
+.map-control-button {
+  @apply bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition-colors border border-gray-200;
+}
+
+.info-window {
+  @apply bg-white rounded-lg shadow-lg p-3 min-w-[200px];
+}
+
+/* Remove dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: var(--text-primary);
+    background-color: var(--background);
+  }
+}
+
+/* Override button defaults */
+button {
+  @apply text-gray-700 bg-white;
+}
+
+button:hover {
+  @apply bg-gray-50;
+}
+
+/* Common Components */
 .section {
   @apply p-6 space-y-4;
 }
@@ -87,22 +137,4 @@ body {
 
 .hover-scale {
   @apply transition-transform duration-200 hover:scale-105;
-}
-
-/* Remove the dark mode styles and center alignment */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #1f2937;
-    background-color: #f3f4f6;
-  }
-}
-
-/* Override default button styles */
-button {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-button:hover {
-  background-color: var(--secondary-color);
 }

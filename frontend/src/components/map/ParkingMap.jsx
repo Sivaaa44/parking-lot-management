@@ -9,6 +9,9 @@ import {
 import { getParkingLots, getParkingLotsByDestination } from '../../utils/api';
 import { initSocket, joinLotRoom, leaveLotRoom, subscribeToAvailabilityUpdates } from '../../utils/socket';
 
+// Define libraries as a constant outside the component to avoid recreation on each render
+const libraries = ['places'];
+
 const containerStyle = {
   width: '100%',
   height: '100%'
@@ -39,8 +42,7 @@ const ParkingMap = ({ onSelectLot, selectedLot, onSetDirectionsFunction, onLotsU
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    // Don't specify mapIds here as it might cause issues
-    libraries: ['places'] // Just include places, directions is not a library
+    libraries // Use the static array defined outside the component
   });
 
   // Fetch parking lots based on location
@@ -99,8 +101,8 @@ const ParkingMap = ({ onSelectLot, selectedLot, onSetDirectionsFunction, onLotsU
     }
   }, [getUserLocation, userLocation]);
 
-  // Update handleMarkerClick to center map on selected lot
-  const handleMarkerClick = (lot) => {
+  // Update handleMarkerClick to be a useCallback function for better performance
+  const handleMarkerClick = useCallback((lot) => {
     if (!lot || !lot.location || !lot.location.coordinates) return;
     
     const position = {
@@ -115,7 +117,21 @@ const ParkingMap = ({ onSelectLot, selectedLot, onSetDirectionsFunction, onLotsU
       map.panTo(position);
       map.setZoom(16); // Zoom in slightly when selecting a lot
     }
-  };
+  }, [map, onSelectLot]);
+
+  // Effect to center map when selectedLot changes from external components (like clicking a card)
+  useEffect(() => {
+    if (selectedLot && map && selectedLot.location && selectedLot.location.coordinates) {
+      const position = {
+        lat: selectedLot.location.coordinates[1],
+        lng: selectedLot.location.coordinates[0]
+      };
+      
+      map.panTo(position);
+      map.setZoom(16);
+      setActiveMarker(selectedLot._id);
+    }
+  }, [selectedLot, map]);
 
   // Handle destination search
   const handleDestinationSearch = async (e) => {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ParkingMap from '../components/map/ParkingMap';
@@ -12,10 +12,11 @@ const MapPage = () => {
   const [showDirections, setShowDirections] = useState(false);
   const [directionsFn, setDirectionsFn] = useState(null);
   const [allLots, setAllLots] = useState([]);
-  const [showAllLots, setShowAllLots] = useState(false);
+  const [showAllLots, setShowAllLots] = useState(true);
   
   const handleSelectLot = useCallback((lot) => {
     setSelectedLot(lot);
+    setShowAllLots(false);
   }, []);
   
   const handleGetDirections = useCallback(() => {
@@ -118,7 +119,9 @@ const MapPage = () => {
   const AllLotsContent = useCallback(() => (
     <div className="p-4 space-y-4 overflow-y-auto">
       {allLots.length === 0 ? (
-        <p className="text-center text-gray-500">No parking lots available</p>
+        <p className="text-center text-gray-500">
+          No parking lots available. Please try another location.
+        </p>
       ) : (
         allLots.map(lot => (
           <ParkingLotCard
@@ -126,11 +129,12 @@ const MapPage = () => {
             lot={lot}
             isSelected={selectedLot && selectedLot._id === lot._id}
             onClick={() => handleSelectLot(lot)}
+            getDirections={directionsFn}
           />
         ))
       )}
     </div>
-  ), [allLots, selectedLot, handleSelectLot]);
+  ), [allLots, selectedLot, handleSelectLot, directionsFn]);
   
   return (
     <div className="h-[calc(100vh-64px)] flex">

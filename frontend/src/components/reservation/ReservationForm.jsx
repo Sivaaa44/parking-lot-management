@@ -114,158 +114,214 @@ const ReservationForm = ({ lotId }) => {
   };
 
   if (loading && !parkingLot) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return <div className="flex justify-center items-center h-40">
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+    </div>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">Reserve Parking</h2>
+    <div>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">Vehicle Information</h2>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-      
-      {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          {success}
-        </div>
-      )}
-      
-      {reservationWarning && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4">
-          <p className="font-medium">Time Restriction:</p>
-          <p>{reservationWarning.message}</p>
-          <p className="text-sm mt-1">You will be redirected to your reservations in a moment...</p>
-        </div>
-      )}
-      
-      {parkingLot && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="font-bold text-lg">{parkingLot.name}</h3>
-          <p className="text-gray-600">{parkingLot.address}</p>
-          
-          <div className="grid grid-cols-2 gap-4 mt-3">
-            <div>
-              <p className="text-sm text-gray-500">Car Rates:</p>
-              <p className="font-medium">₹{parkingLot.rates.car.first_hour}/first hour</p>
-              <p className="font-medium">₹{parkingLot.rates.car.additional_hour}/additional hour</p>
-              <p className="font-medium">₹{parkingLot.rates.car.daily_cap}/day max</p>
+        <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Bike Rates:</p>
-              <p className="font-medium">₹{parkingLot.rates.bike.first_hour}/first hour</p>
-              <p className="font-medium">₹{parkingLot.rates.bike.additional_hour}/additional hour</p>
-              <p className="font-medium">₹{parkingLot.rates.bike.daily_cap}/day max</p>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{error}</p>
             </div>
           </div>
         </div>
       )}
       
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2" htmlFor="vehicle_type">
-            Vehicle Type
-          </label>
-          <select
-            id="vehicle_type"
-            name="vehicle_type"
-            className="w-full p-2 border border-gray-300 rounded"
-            value={formData.vehicle_type}
-            onChange={handleChange}
-            required
-          >
-            <option value="car">Car</option>
-            <option value="bike">Bike</option>
-          </select>
+      {success && (
+        <div className="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{success}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {reservationWarning && (
+        <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">Time Restriction:</p>
+              <p className="text-sm">{reservationWarning.message}</p>
+              <p className="text-xs mt-1">You will be redirected to your reservations in a moment...</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="vehicle_type">
+              Vehicle Type
+            </label>
+            <select
+              id="vehicle_type"
+              name="vehicle_type"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.vehicle_type}
+              onChange={handleChange}
+              required
+            >
+              <option value="car">Car</option>
+              <option value="bike">Bike</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="vehicle_number">
+              Vehicle Number
+            </label>
+            <input
+              id="vehicle_number"
+              name="vehicle_number"
+              type="text"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.vehicle_number}
+              onChange={handleChange}
+              placeholder="e.g., MH01AB1234"
+              required
+            />
+          </div>
         </div>
         
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2" htmlFor="vehicle_number">
-            Vehicle Number
-          </label>
-          <input
-            id="vehicle_number"
-            name="vehicle_number"
-            type="text"
-            className="w-full p-2 border border-gray-300 rounded"
-            value={formData.vehicle_number}
-            onChange={handleChange}
-            placeholder="e.g., MH01AB1234"
-            required
-          />
-        </div>
-        
-        <div className="mb-4">
-          <div className="flex items-center mb-2">
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center mb-4">
             <input
               id="reserve_now"
               name="reserve_now"
               type="checkbox"
-              className="h-4 w-4 text-blue-600"
+              className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
               checked={formData.reserve_now}
               onChange={handleChange}
             />
-            <label className="ml-2 text-gray-700" htmlFor="reserve_now">
+            <label className="ml-2 block text-sm font-medium text-gray-700" htmlFor="reserve_now">
               Reserve for now
             </label>
           </div>
           
           {!formData.reserve_now && (
-            <div>
-              <label className="block text-gray-700 mb-2" htmlFor="start_time">
+            <div className="p-4 bg-white rounded-md border border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="start_time">
                 Start Time
               </label>
               <input
                 id="start_time"
                 name="start_time"
                 type="datetime-local"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.start_time}
                 onChange={handleChange}
                 required={!formData.reserve_now}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 mt-2 italic">
                 Enter time in IST (Indian Standard Time)
               </p>
             </div>
           )}
         </div>
         
-        <div className="mt-6 space-y-4">
+        <div className="mt-8 space-y-4">
+          {availabilityData && (
+            <div className={`p-4 rounded-lg ${availabilityData.available ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              <div className="flex items-start">
+                <div className={`flex-shrink-0 p-1 rounded-full ${availabilityData.available ? 'bg-green-100' : 'bg-red-100'}`}>
+                  {availabilityData.available ? (
+                    <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+                <div className="ml-3">
+                  {availabilityData.available ? (
+                    <p className="text-sm font-medium text-green-800">
+                      Spots available: {availabilityData.available_spots} out of {availabilityData.total_capacity}
+                    </p>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-medium text-red-800">{availabilityData.message}</p>
+                      {availabilityData.next_available_formatted && (
+                        <p className="text-sm text-red-700 mt-1">
+                          Next available time: {availabilityData.next_available_formatted}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
           <button
             type="button"
             onClick={handleCheckAvailability}
-            className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded"
+            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-4 rounded-md transition-colors border border-gray-300 flex items-center justify-center"
             disabled={isCheckingAvailability}
           >
-            {isCheckingAvailability ? 'Checking...' : 'Check Availability'}
+            {isCheckingAvailability ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-500 border-t-transparent mr-2"></div>
+                Checking...
+              </>
+            ) : (
+              <>
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Check Availability
+              </>
+            )}
           </button>
           
-          {availabilityData && (
-            <div className={`p-3 rounded ${availabilityData.available ? 'bg-green-100' : 'bg-red-100'}`}>
-              {availabilityData.available ? (
-                <p>✅ Spots available: {availabilityData.available_spots} out of {availabilityData.total_capacity}</p>
-              ) : (
-                <>
-                  <p>❌ {availabilityData.message}</p>
-                  {availabilityData.next_available_formatted && (
-                    <p>Next available time: {availabilityData.next_available_formatted}</p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+          <button
+            type="submit"
+            className={`w-full py-3 px-4 rounded-md text-white font-medium flex items-center justify-center ${
+              availabilityData?.available 
+                ? 'bg-blue-600 hover:bg-blue-700' 
+                : 'bg-blue-300 cursor-not-allowed'
+            } transition-colors`}
+            disabled={loading || !availabilityData?.available}
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                Reserving...
+              </>
+            ) : (
+              <>
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Complete Reservation
+              </>
+            )}
+          </button>
         </div>
-        
-        <button
-          type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mt-4"
-          disabled={loading || !availabilityData?.available}
-        >
-          {loading ? 'Reserving...' : 'Reserve'}
-        </button>
       </form>
     </div>
   );

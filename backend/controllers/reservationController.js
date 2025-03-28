@@ -11,7 +11,7 @@ exports.createReservation = async (req, res) => {
       vehicle_type, 
       vehicle_number, 
       start_time,
-      reserve_now = false // Parameter to indicate immediate reservation
+      reserve_now = false
     } = req.body;
     
     // Use provided time or current time in IST
@@ -36,15 +36,13 @@ exports.createReservation = async (req, res) => {
       });
     }
     
-    // For immediate reservations, we check current availability
-    // For future reservations, we'd ideally check projected availability at that time
+    // Calculate current occupancy
     const activeReservations = await Reservation.countDocuments({
       parking_lot_id,
       vehicle_type,
       status: 'active'
     });
     
-    // If it's a future reservation, also check other pending reservations that might overlap
     let pendingCount = 0;
     if (!reserve_now) {
       // Count pending reservations that would be active at the requested start time
@@ -56,8 +54,9 @@ exports.createReservation = async (req, res) => {
       });
     }
     
+    const totalCapacity = parkingLot.total_spots[vehicle_type];
     const totalOccupied = activeReservations + pendingCount;
-    const availableSpots = parkingLot.total_spots[vehicle_type] - totalOccupied;
+    const availableSpots = totalCapacity - totalOccupied;
     
     if (availableSpots <= 0) {
       // If no spots available, find the next likely available time
@@ -73,6 +72,26 @@ exports.createReservation = async (req, res) => {
     // Set initial status based on reserve_now flag
     const initialStatus = reserve_now ? 'active' : 'pending';
     
+    // Only check for max_end_time constraint if we're down to last available spot
+    // AND this is an immediate reservation
+    let max_end_time = null;
+    let limitedTimeWarning = null;
+    
+    if (reserve_now && availableSpots === 1) {
+      // Find the next upcoming reservation for this spot type
+      const nextReservation = await Reservation.findOne({
+        parking_lot_id,
+        vehicle_type,
+        status: 'pending',
+        start_time: { $gt: startDateObj }
+      }).sort({ start_time: 1 });  // Get the earliest upcoming reservation
+      
+      if (nextReservation) {
+        max_end_time = nextReservation.start_time;
+        limitedTimeWarning = `Note: Your parking is only available until ${formatISTDate(max_end_time)} due to an upcoming reservation.`;
+      }
+    }
+    
     // Create reservation
     const reservation = await Reservation.create({
       user_id: req.user._id,
@@ -80,6 +99,7 @@ exports.createReservation = async (req, res) => {
       vehicle_type,
       vehicle_number,
       start_time: startDateObj,
+      max_end_time,  // Will be null unless we're at capacity with upcoming reservation
       status: initialStatus
     });
     
@@ -88,10 +108,17 @@ exports.createReservation = async (req, res) => {
       await updateAvailability(parking_lot_id, vehicle_type);
     }
     
-    res.status(201).json({
+    const response = {
       ...reservation.toObject(),
       start_time_formatted: formatISTDate(reservation.start_time)
-    });
+    };
+    
+    if (max_end_time) {
+      response.max_end_time_formatted = formatISTDate(max_end_time);
+      response.warning = limitedTimeWarning;
+    }
+    
+    res.status(201).json(response);
   } catch (error) {
     console.error('Create reservation error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -164,6 +191,23 @@ exports.startReservation = async (req, res) => {
       return res.status(400).json({ message: `Reservation is already ${reservation.status}` });
     }
     
+    // Get current time in IST
+    const currentTime = getCurrentISTTime();
+    
+    // Check if trying to start before the scheduled start time (with 15 min grace period)
+    const startTime = new Date(reservation.start_time);
+    const fifteenMinutesBeforeStart = new Date(startTime);
+    fifteenMinutesBeforeStart.setMinutes(startTime.getMinutes() - 15);
+    
+    if (currentTime < fifteenMinutesBeforeStart) {
+      return res.status(400).json({ 
+        message: `Cannot start reservation before the scheduled time (15-minute grace period allowed)`,
+        scheduled_time: formatISTDate(reservation.start_time),
+        earliest_start: formatISTDate(fifteenMinutesBeforeStart),
+        current_time: formatISTDate(currentTime)
+      });
+    }
+    
     // Update reservation status to active
     reservation.status = 'active';
     await reservation.save();
@@ -228,8 +272,22 @@ exports.endReservation = async (req, res) => {
       fee = vehicleRates.daily_cap;
     }
     
+    // Apply late fee if the user exceeded max_end_time
+    let lateFeePenalty = 0;
+    let isLate = false;
+    
+    if (reservation.max_end_time && end_time > new Date(reservation.max_end_time)) {
+      // Calculate overtime in hours
+      const overtimeMs = end_time - new Date(reservation.max_end_time);
+      const overtimeHours = overtimeMs / (1000 * 60 * 60);
+      
+      // Apply a 50% surcharge for overtime
+      lateFeePenalty = vehicleRates.additional_hour * overtimeHours * 1.5;
+      isLate = true;
+    }
+    
     // Round to 2 decimal places
-    reservation.fee = Math.round(fee * 100) / 100;
+    reservation.fee = Math.round((fee + lateFeePenalty) * 100) / 100;
     reservation.status = 'completed';
     
     await reservation.save();
@@ -237,12 +295,23 @@ exports.endReservation = async (req, res) => {
     // Update availability
     await updateAvailability(reservation.parking_lot_id, reservation.vehicle_type);
     
-    res.json({
+    const response = {
       ...reservation.toObject(),
       start_time_formatted: formatISTDate(reservation.start_time),
       end_time_formatted: formatISTDate(reservation.end_time),
       duration_hours: Math.round(durationHours * 100) / 100
-    });
+    };
+    
+    if (isLate) {
+      response.warning = "You were parked beyond the maximum allowed time due to another reservation.";
+      response.late_fee = Math.round(lateFeePenalty * 100) / 100;
+      
+      if (reservation.max_end_time) {
+        response.max_end_time_formatted = formatISTDate(reservation.max_end_time);
+      }
+    }
+    
+    res.json(response);
   } catch (error) {
     console.error('End reservation error:', error);
     res.status(500).json({ message: 'Server error' });

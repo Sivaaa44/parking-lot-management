@@ -7,6 +7,7 @@ const cors = require('cors');
 const socketUtil = require('./utils/socketUtil');
 const { setupCleanupInterval } = require('./middlewares/reservationCleanup');
 const { getCurrentISTTime, formatISTDate } = require('./utils/timeUtil');
+const jwt = require('jsonwebtoken');
 
 dotenv.config();
 const app = express();
@@ -24,18 +25,41 @@ const io = new Server(server, {
 // Initialize socket utility
 socketUtil.initSocket(io);
 
-// Socket.IO setup
+// Socket.IO setup with authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  
+  if (!token) {
+    return next(new Error('Authentication error'));
+  }
+  
+  try {
+    // Verify the token and store user ID in the socket
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    socket.join(`user_${decoded.id}`); // Join a room specific to this user
+    next();
+  } catch (error) {
+    return next(new Error('Authentication error'));
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log('Client connected:', socket.id, 'User ID:', socket.userId);
 
   // Join a room based on parking lot ID (e.g., "lot_123")
   socket.on('joinLot', (lotId) => {
     socket.join(`lot_${lotId}`);
-    console.log(`Client ${socket.id} joined lot_${lotId}`);
+    console.log(`Client ${socket.id} (User: ${socket.userId}) joined lot_${lotId}`);
+  });
+  
+  socket.on('leaveLot', (lotId) => {
+    socket.leave(`lot_${lotId}`);
+    console.log(`Client ${socket.id} (User: ${socket.userId}) left lot_${lotId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.log('Client disconnected:', socket.id, 'User ID:', socket.userId);
   });
 });
 
@@ -58,13 +82,6 @@ app.use((req, res, next) => {
   if (Object.keys(req.body).length) {
     console.log('Request Body:', req.body);
   }
-
-  // Capture the original response.send function
-  const originalSend = res.send;
-  res.send = function (body) {
-    console.log(`Response to ${req.method} ${req.url}:`, body);
-    originalSend.call(this, body);
-  };
 
   next();
 });

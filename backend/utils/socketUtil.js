@@ -10,6 +10,7 @@ function broadcast(lotId, message) {
     return;
   }
   io.to(`lot_${lotId}`).emit('availabilityUpdate', message);
+  console.log(`Broadcasted to lot_${lotId}:`, message);
 }
 
 module.exports = {

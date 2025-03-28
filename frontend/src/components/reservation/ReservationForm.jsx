@@ -12,8 +12,10 @@ const ReservationForm = ({ lotId }) => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [availabilityData, setAvailabilityData] = useState(null);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [reservationWarning, setReservationWarning] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -86,8 +88,23 @@ const ReservationForm = ({ lotId }) => {
         reserve_now: formData.reserve_now
       };
       
-      await createReservation(reservationData);
-      navigate('/reservations');
+      const response = await createReservation(reservationData);
+      
+      // Check if there's a warning about time limitations
+      if (response.warning) {
+        setReservationWarning({
+          message: response.warning,
+          max_end_time: response.max_end_time_formatted
+        });
+        setSuccess('Reservation created, but with time restrictions.');
+        
+        // Navigate after a short delay to show the warning
+        setTimeout(() => {
+          navigate('/reservations');
+        }, 3000);
+      } else {
+        navigate('/reservations');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create reservation');
       console.error(err);
@@ -107,6 +124,20 @@ const ReservationForm = ({ lotId }) => {
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
+        </div>
+      )}
+      
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          {success}
+        </div>
+      )}
+      
+      {reservationWarning && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4">
+          <p className="font-medium">Time Restriction:</p>
+          <p>{reservationWarning.message}</p>
+          <p className="text-sm mt-1">You will be redirected to your reservations in a moment...</p>
         </div>
       )}
       
@@ -214,7 +245,16 @@ const ReservationForm = ({ lotId }) => {
           
           {availabilityData && (
             <div className={`p-3 rounded ${availabilityData.available ? 'bg-green-100' : 'bg-red-100'}`}>
-              {availabilityData.message}
+              {availabilityData.available ? (
+                <p>✅ Spots available: {availabilityData.available_spots} out of {availabilityData.total_capacity}</p>
+              ) : (
+                <>
+                  <p>❌ {availabilityData.message}</p>
+                  {availabilityData.next_available_formatted && (
+                    <p>Next available time: {availabilityData.next_available_formatted}</p>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -222,7 +262,7 @@ const ReservationForm = ({ lotId }) => {
         <button
           type="submit"
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mt-4"
-          disabled={loading}
+          disabled={loading || !availabilityData?.available}
         >
           {loading ? 'Reserving...' : 'Reserve'}
         </button>

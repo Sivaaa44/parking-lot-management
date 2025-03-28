@@ -72,6 +72,9 @@ export const createReservation = async (data) => {
     const response = await api.post('/reservations', data);
     return response.data;
   } catch (error) {
+    if (error.response && error.response.data) {
+      throw error;
+    }
     throw error;
   }
 };
@@ -90,6 +93,9 @@ export const startReservation = async (id) => {
     const response = await api.put(`/reservations/${id}/start`);
     return response.data;
   } catch (error) {
+    if (error.response && error.response.data) {
+      throw error;
+    }
     throw error;
   }
 };
@@ -99,6 +105,9 @@ export const endReservation = async (id) => {
     const response = await api.put(`/reservations/${id}/end`);
     return response.data;
   } catch (error) {
+    if (error.response && error.response.data) {
+      throw error;
+    }
     throw error;
   }
 };

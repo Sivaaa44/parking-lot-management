@@ -157,6 +157,139 @@ exports.getById = async (req, res) => {
   }
 };
 
+// Get parking lots by destination address
+exports.getParkingLotsByDestination = async (req, res) => {
+  try {
+    const { address, radius = 5 } = req.query; // radius in km
+    
+    if (!address) {
+      return res.status(400).json({ message: 'Destination address is required' });
+    }
+    
+    console.log(`Looking for parking lots near address: ${address}`);
+    
+    // Use Google Geocoding API to convert address to coordinates
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    
+    // Fetch coordinates from Google API
+    const response = await fetch(geocodeUrl);
+    const data = await response.json();
+    
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      console.error('Geocoding error:', data.status, data.error_message);
+      return res.status(400).json({ 
+        message: 'Could not geocode the provided address',
+        details: data.error_message || 'No results found'
+      });
+    }
+    
+    // Extract coordinates from the first result
+    const location = data.results[0].geometry.location;
+    const { lat, lng } = location;
+    
+    console.log(`Geocoded address to coordinates: lat=${lat}, lng=${lng}`);
+    
+    // Convert radius from km to meters (MongoDB uses meters)
+    const radiusInMeters = parseFloat(radius) * 1000;
+    
+    // Find parking lots within radius using MongoDB's $geoNear
+    const nearbyLots = await ParkingLot.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [lng, lat] // Note: longitude first
+          },
+          $maxDistance: radiusInMeters
+        }
+      }
+    });
+    
+    if (nearbyLots.length === 0) {
+      console.log('No parking lots found near the provided address');
+      return res.json({ 
+        message: 'No parking lots found near the destination',
+        formattedAddress: data.results[0].formatted_address,
+        coordinates: { lat, lng }
+      });
+    }
+    
+    // Current time in IST for availability checks
+    const currentTime = getCurrentISTTime();
+    
+    // Get current availability for each lot
+    const lotsWithAvailability = await Promise.all(
+      nearbyLots.map(async (lot) => {
+        // Get active car reservations
+        const carActiveCount = await Reservation.countDocuments({
+          parking_lot_id: lot._id,
+          vehicle_type: 'car',
+          status: 'active'
+        });
+        
+        // Get pending car reservations
+        const carPendingCount = await Reservation.countDocuments({
+          parking_lot_id: lot._id,
+          vehicle_type: 'car',
+          status: 'pending',
+          start_time: { $lte: currentTime }
+        });
+        
+        // Get active bike reservations
+        const bikeActiveCount = await Reservation.countDocuments({
+          parking_lot_id: lot._id,
+          vehicle_type: 'bike',
+          status: 'active'
+        });
+        
+        // Get pending bike reservations
+        const bikePendingCount = await Reservation.countDocuments({
+          parking_lot_id: lot._id,
+          vehicle_type: 'bike',
+          status: 'pending',
+          start_time: { $lte: currentTime }
+        });
+        
+        return {
+          ...lot.toObject(),
+          available_spots: {
+            car: lot.total_spots.car - (carActiveCount + carPendingCount),
+            bike: lot.total_spots.bike - (bikeActiveCount + bikePendingCount)
+          },
+          reserved_spots: {
+            car: { active: carActiveCount, pending: carPendingCount },
+            bike: { active: bikeActiveCount, pending: bikePendingCount }
+          },
+          distance_km: Math.round((lot.location.coordinates[2] || 0) / 100) / 10, // Convert meters to km with 1 decimal
+        };
+      })
+    );
+    
+    console.log(`Found ${lotsWithAvailability.length} parking lots near the destination`);
+    
+    // Return the results along with the geocoded address information
+    res.json({
+      lots: lotsWithAvailability,
+      destination: {
+        query: address,
+        formatted_address: data.results[0].formatted_address,
+        coordinates: { lat, lng }
+      }
+    });
+  } catch (error) {
+    console.error('Get parking lots by destination error:', error);
+    
+    if (error.message && error.message.includes('API key')) {
+      return res.status(500).json({ 
+        message: 'Google Geocoding API key error',
+        details: error.message
+      });
+    }
+    
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Check availability for a specific time
 exports.checkAvailability = async (req, res) => {
   try {

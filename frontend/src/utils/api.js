@@ -39,6 +39,21 @@ export const getParkingLots = async (lat, lng, radius = 10) => {
   }
 };
 
+export const getParkingLotsByDestination = async (address, radius = 5) => {
+  try {
+    const response = await api.get('/parking-lots/by-destination', {
+      params: { 
+        address, 
+        radius 
+      }
+    });
+    return response;
+  } catch (error) {
+    console.error('Error fetching parking lots by destination:', error);
+    throw error;
+  }
+};
+
 export const getParkingLotById = async (id) => {
   try {
     const response = await api.get(`/parking-lots/${id}`);

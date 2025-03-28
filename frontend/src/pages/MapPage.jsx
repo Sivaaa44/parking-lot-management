@@ -15,7 +15,6 @@ const MapPage = () => {
   
   const handleReserve = () => {
     if (!user) {
-      // Redirect to login if not authenticated
       navigate('/login');
       return;
     }
@@ -26,41 +25,81 @@ const MapPage = () => {
   };
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <h1 className="text-2xl font-bold mb-2">Find Parking</h1>
-        <p className="text-gray-600">
-          Browse available parking lots on the map and select one to view details.
-        </p>
-      </div>
-      
-      <div className="bg-white rounded-lg shadow-md p-4">
+    <div className="h-[calc(100vh-64px)] flex">
+      {/* Left side - Map */}
+      <div className="flex-1 relative h-full">
         <ErrorBoundary>
-          <ParkingMap onSelectLot={handleSelectLot} />
+          <ParkingMap onSelectLot={handleSelectLot} selectedLot={selectedLot} />
         </ErrorBoundary>
-        
-        {selectedLot && (
-          <div className="mt-6 p-4 border-t border-gray-200">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold">{selectedLot.name}</h2>
-                <p className="text-gray-600">{selectedLot.address}</p>
-                <div className="mt-2">
-                  <p><span className="font-medium">Cars:</span> {selectedLot.available_spots.car}/{selectedLot.total_spots.car} available</p>
-                  <p><span className="font-medium">Bikes:</span> {selectedLot.available_spots.bike}/{selectedLot.total_spots.bike} available</p>
+      </div>
+
+      {/* Right side - Details Panel */}
+      <div className="w-[400px] bg-white border-l border-gray-100 flex flex-col h-full">
+        <div className="p-4 border-b border-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {selectedLot ? 'Parking Details' : 'Available Parking'}
+          </h2>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {selectedLot ? (
+            <div className="p-4">
+              <div className="card p-4 space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {selectedLot.name}
+                  </h3>
+                  <p className="text-gray-600 mt-1">{selectedLot.address}</p>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <span className="text-sm text-gray-600 block mb-1">Cars</span>
+                    <span className="text-xl font-semibold text-green-600">
+                      {selectedLot.available_spots.car}/{selectedLot.total_spots.car}
+                    </span>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <span className="text-sm text-gray-600 block mb-1">Bikes</span>
+                    <span className="text-xl font-semibold text-green-600">
+                      {selectedLot.available_spots.bike}/{selectedLot.total_spots.bike}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900">Parking Rates</h4>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Cars</span>
+                      <span className="font-medium text-green-600">
+                        ₹{selectedLot.rates.car.first_hour}/hr
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Bikes</span>
+                      <span className="font-medium text-green-600">
+                        ₹{selectedLot.rates.bike.first_hour}/hr
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleReserve}
+                  className="btn btn-primary w-full"
+                  disabled={!selectedLot || (selectedLot.available_spots.car === 0 && selectedLot.available_spots.bike === 0)}
+                >
+                  Reserve Parking
+                </button>
               </div>
-              
-              <button
-                onClick={handleReserve}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-                disabled={!selectedLot || (selectedLot.available_spots.car === 0 && selectedLot.available_spots.bike === 0)}
-              >
-                Reserve Parking
-              </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              Select a parking lot from the map to view details
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

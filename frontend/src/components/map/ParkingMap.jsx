@@ -6,7 +6,7 @@ import ParkingLotCard from './ParkingLotCard';
 
 const containerStyle = {
   width: '100%',
-  height: 'calc(100vh - 250px)' // Adjusted to leave space for navbar and search
+  height: '100%'
 };
 
 const defaultCenter = {
@@ -14,9 +14,8 @@ const defaultCenter = {
   lng: 80.2707
 };
 
-const ParkingMap = ({ onSelectLot }) => {
+const ParkingMap = ({ onSelectLot, selectedLot }) => {
   const [parkingLots, setParkingLots] = useState([]);
-  const [selectedLot, setSelectedLot] = useState(null);
   const [activeMarker, setActiveMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [map, setMap] = useState(null);
@@ -24,6 +23,7 @@ const ParkingMap = ({ onSelectLot }) => {
   const [destinationSearch, setDestinationSearch] = useState('');
   const [searchRadius, setSearchRadius] = useState(5);
   const [error, setError] = useState(null);
+  const [infoWindowPosition, setInfoWindowPosition] = useState(null);
 
   // Load Google Maps API
   const { isLoaded, loadError } = useJsApiLoader({
@@ -32,33 +32,182 @@ const ParkingMap = ({ onSelectLot }) => {
     mapIds: [import.meta.env.VITE_GOOGLE_MAPS_ID]
   });
 
-  // Initial location and geolocation setup
-  useEffect(() => {
-    if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
-      setError('Google Maps API key is missing. Please check your environment configuration.');
+  // Fetch parking lots based on location
+  const fetchParkingLots = async (location) => {
+    try {
+      setLoading(true);
+      const response = await getParkingLots(location.lat, location.lng);
+      setParkingLots(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      setError('Failed to load parking lots. Please try again.');
+      console.error('Error fetching parking lots:', err);
+      setParkingLots([]);
+    } finally {
+      setLoading(false);
     }
-    
-    // Initial geolocation on component mount
+  };
+
+  // Get user location and update map
+  const getUserLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const initialLocation = {
+          const newLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          setUserLocation(initialLocation);
+          setUserLocation(newLocation);
+          
+          if (map) {
+            map.panTo(newLocation);
+            map.setZoom(14);
+          }
+          
+          // Fetch parking lots for new location
+          fetchParkingLots(newLocation);
         },
         (error) => {
           console.error('Error getting location:', error);
-          // Fallback to default location if geolocation fails
-          setUserLocation(defaultCenter);
+          setError('Unable to retrieve your location');
         }
       );
-    } else {
-      // Fallback to default location if geolocation not supported
-      setUserLocation(defaultCenter);
     }
-  }, []);
+  }, [map]);
+
+  // Initial location setup
+  useEffect(() => {
+    if (!userLocation) {
+      getUserLocation();
+    }
+  }, [getUserLocation]);
+
+  // Handle marker click
+  const handleMarkerClick = (lot) => {
+    setActiveMarker(lot._id);
+    onSelectLot(lot);
+    setInfoWindowPosition({
+      lat: lot.location.coordinates[1],
+      lng: lot.location.coordinates[0]
+    });
+  };
+
+  // Handle destination search
+  const handleDestinationSearch = async (e) => {
+    e.preventDefault();
+    
+    if (!destinationSearch.trim()) {
+      setError('Please enter a destination');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await getParkingLotsByDestination(destinationSearch, searchRadius);
+      
+      if (response.data.lots && response.data.lots.length > 0) {
+        setParkingLots(response.data.lots);
+        
+        if (response.data.destination.coordinates) {
+          const { lat, lng } = response.data.destination.coordinates;
+          const newLocation = { lat, lng };
+          setUserLocation(newLocation);
+          
+          if (map) {
+            map.panTo(newLocation);
+            map.setZoom(14);
+          }
+        }
+      } else {
+        setError('No parking lots found near the destination');
+        setParkingLots([]);
+      }
+    } catch (err) {
+      console.error('Destination search error:', err);
+      setError(err.response?.data?.message || 'Failed to search parking lots');
+      setParkingLots([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset search
+  const handleResetSearch = () => {
+    setDestinationSearch('');
+    setError(null);
+    getUserLocation();
+  };
+
+  // Render map markers
+  const renderMarkers = () => {
+    const markers = [];
+
+    // Add user location marker (Google's default blue dot)
+    if (userLocation) {
+      markers.push(
+        <Marker
+          key="user-location"
+          position={userLocation}
+          icon={{
+            url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            scaledSize: new window.google.maps.Size(40, 40)
+          }}
+        />
+      );
+    }
+
+    // Add parking lot markers
+    parkingLots.forEach((lot) => {
+      const isAvailable = lot.available_spots.car > 0 || lot.available_spots.bike > 0;
+      const position = {
+        lat: lot.location.coordinates[1],
+        lng: lot.location.coordinates[0]
+      };
+
+      markers.push(
+        <Marker
+          key={lot._id}
+          position={position}
+          onClick={() => handleMarkerClick(lot)}
+          icon={{
+            url: isAvailable 
+              ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+              : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+            scaledSize: new window.google.maps.Size(35, 35)
+          }}
+        >
+          {activeMarker === lot._id && (
+            <InfoWindow
+              position={position}
+              onCloseClick={() => setActiveMarker(null)}
+            >
+              <div className="min-w-[200px] p-2">
+                <h3 className="font-bold text-gray-900">{lot.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">{lot.address}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-gray-600">Cars:</span>
+                    <span className="font-medium text-green-600 ml-1">
+                      {lot.available_spots.car}/{lot.total_spots.car}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Bikes:</span>
+                    <span className="font-medium text-green-600 ml-1">
+                      {lot.available_spots.bike}/{lot.total_spots.bike}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </InfoWindow>
+          )}
+        </Marker>
+      );
+    });
+
+    return markers;
+  };
 
   // Socket setup for real-time updates
   useEffect(() => {
@@ -70,16 +219,16 @@ const ParkingMap = ({ onSelectLot }) => {
 
     // Subscribe to availability updates for all lots
     unsubscribe = subscribeToAvailabilityUpdates((update) => {
-      setParkingLots((currentLots) => 
-        currentLots.map((lot) => 
-          lot._id === update.lot_id 
-            ? { 
-                ...lot, 
-                available_spots: {
-                  ...lot.available_spots,
-                  [update.vehicle_type]: update.available_spots
-                }
-              } 
+      setParkingLots((currentLots) =>
+        currentLots.map((lot) =>
+          lot._id === update.lot_id
+            ? {
+              ...lot,
+              available_spots: {
+                ...lot.available_spots,
+                [update.vehicle_type]: update.available_spots
+              }
+            }
             : lot
         )
       );
@@ -101,170 +250,6 @@ const ParkingMap = ({ onSelectLot }) => {
     };
   }, [parkingLots.length]);
 
-  // Fetch parking lots based on user location
-  useEffect(() => {
-    const fetchParkingLots = async () => {
-      if (!userLocation) return;
-
-      try {
-        setLoading(true);
-        const response = await getParkingLots(userLocation.lat, userLocation.lng);
-        setParkingLots(Array.isArray(response.data) ? response.data : []);
-      } catch (err) {
-        setError('Failed to load parking lots. Please try again.');
-        console.error('Error fetching parking lots:', err);
-        setParkingLots([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchParkingLots();
-  }, [userLocation]);
-
-  // Destination search handler
-  const handleDestinationSearch = async (e) => {
-    e.preventDefault();
-    
-    if (!destinationSearch.trim()) {
-      setError('Please enter a destination');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Call new API endpoint for destination-based search
-      const response = await getParkingLotsByDestination(destinationSearch, searchRadius);
-      
-      if (response.data.lots && response.data.lots.length > 0) {
-        setParkingLots(response.data.lots);
-        
-        // Center map on the destination
-        if (response.data.destination.coordinates) {
-          const { lat, lng } = response.data.destination.coordinates;
-          setUserLocation({ lat, lng });
-        }
-      } else {
-        setError('No parking lots found near the destination');
-        setParkingLots([]);
-      }
-    } catch (err) {
-      console.error('Destination search error:', err);
-      setError(err.response?.data?.message || 'Failed to search parking lots');
-      setParkingLots([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Get user location
-  const getUserLocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserLocation(newLocation);
-          
-          // Center map on new location
-          if (map) {
-            map.panTo(newLocation);
-          }
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setError('Unable to retrieve your location');
-        }
-      );
-    }
-  }, [map]);
-
-  // Map load and unload handlers
-  const onMapLoad = useCallback((map) => {
-    setMap(map);
-  }, []);
-
-  const onMapUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
-
-  // Marker click handlers
-  const handleMarkerClick = (lot) => {
-    setActiveMarker(lot._id);
-    setSelectedLot(lot);
-    if (onSelectLot) {
-      onSelectLot(lot);
-    }
-  };
-
-  const handleCardClick = (lot) => {
-    setSelectedLot(lot);
-    setActiveMarker(lot._id);
-    if (onSelectLot) {
-      onSelectLot(lot);
-    }
-    
-    // Center map on selected lot
-    if (map) {
-      map.panTo({ 
-        lat: lot.location.coordinates[1], 
-        lng: lot.location.coordinates[0] 
-      });
-    }
-  };
-
-  // Render parking lot markers
-  const renderParkingLotMarkers = () => {
-    if (!Array.isArray(parkingLots)) {
-      console.error('parkingLots is not an array:', parkingLots);
-      return null;
-    }
-
-    return parkingLots.map((lot) => {
-      const isAvailable = lot.available_spots.car > 0 || lot.available_spots.bike > 0;
-      const position = lot.location.coordinates 
-        ? {
-            lat: lot.location.coordinates[1],
-            lng: lot.location.coordinates[0]
-          }
-        : {
-            lat: lot.location.lat,
-            lng: lot.location.lng
-          };
-
-      return (
-        <Marker
-          key={lot._id}
-          position={position}
-          onClick={() => handleMarkerClick(lot)}
-          icon={{
-            url: isAvailable 
-              ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-              : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-            scaledSize: new window.google.maps.Size(30, 30)
-          }}
-        >
-          {activeMarker === lot._id && (
-            <InfoWindow onCloseClick={() => setActiveMarker(null)}>
-              <div className="min-w-[150px]">
-                <h3 className="font-bold">{lot.name}</h3>
-                <p className="text-sm">{lot.address}</p>
-                <div className="mt-2 text-sm">
-                  <p>Cars: {lot.available_spots.car}/{lot.total_spots.car}</p>
-                  <p>Bikes: {lot.available_spots.bike}/{lot.total_spots.bike}</p>
-                </div>
-              </div>
-            </InfoWindow>
-          )}
-        </Marker>
-      );
-    });
-  };
-
   // Loading and error states
   if (!isLoaded) {
     return (
@@ -281,7 +266,7 @@ const ParkingMap = ({ onSelectLot }) => {
     return (
       <div className="bg-red-50 p-4 rounded-lg">
         <p className="text-red-600">Error loading Google Maps. Please check your API key and try again.</p>
-        <button 
+        <button
           className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           onClick={() => window.location.reload()}
         >
@@ -299,7 +284,7 @@ const ParkingMap = ({ onSelectLot }) => {
     return (
       <div className="bg-red-50 p-4 rounded-lg">
         <p className="text-red-600">{error}</p>
-        <button 
+        <button
           className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           onClick={() => window.location.reload()}
         >
@@ -311,21 +296,21 @@ const ParkingMap = ({ onSelectLot }) => {
 
   // Main render
   return (
-    <div className="relative h-[calc(100vh-200px)]">
-      {/* Destination Search Bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-4">
-        <form onSubmit={handleDestinationSearch} className="flex max-w-2xl mx-auto">
+    <div className="h-full relative">
+      {/* Search Bar */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-2xl px-4">
+        <form onSubmit={handleDestinationSearch} className="flex shadow-lg rounded-lg overflow-hidden bg-white">
           <input 
             type="text" 
-            placeholder="Enter destination" 
+            placeholder="Search for a destination..."
             value={destinationSearch}
             onChange={(e) => setDestinationSearch(e.target.value)}
-            className="flex-grow p-2 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-3 border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
           <select 
             value={searchRadius}
             onChange={(e) => setSearchRadius(Number(e.target.value))}
-            className="p-2 border-y border-gray-300 bg-white"
+            className="w-24 px-2 py-3 border-0 border-l border-gray-200 bg-white focus:outline-none"
           >
             <option value={5}>5 km</option>
             <option value={10}>10 km</option>
@@ -333,60 +318,84 @@ const ParkingMap = ({ onSelectLot }) => {
           </select>
           <button 
             type="submit" 
-            className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 transition"
+            className="px-6 py-3 bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
           >
             Search
           </button>
+          {destinationSearch && (
+            <button 
+              type="button"
+              onClick={handleResetSearch}
+              className="px-4 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              Clear
+            </button>
+          )}
         </form>
       </div>
 
+      {/* Location Button - Now at bottom right */}
+      <button
+        onClick={getUserLocation}
+        className="absolute bottom-8 right-8 z-10 bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        title="Get my location"
+      >
+        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+
       {/* Google Map */}
-      {isLoaded && userLocation && (
+      {isLoaded && (
         <GoogleMap
           mapContainerStyle={containerStyle}
-          center={userLocation}
+          center={userLocation || defaultCenter}
           zoom={14}
-          onLoad={onMapLoad}
-          onUnmount={onMapUnmount}
+          onLoad={setMap}
+          onUnmount={() => setMap(null)}
           options={{
             streetViewControl: false,
             mapTypeControl: false,
-            mapId: import.meta.env.VITE_GOOGLE_MAPS_ID
+            mapId: import.meta.env.VITE_GOOGLE_MAPS_ID,
+            zoomControl: true,
+            zoomControlOptions: {
+              position: window.google.maps.ControlPosition.RIGHT_TOP
+            }
           }}
         >
-          {/* Location Button */}
-          <div className="absolute top-16 right-4">
-            <button
-              onClick={getUserLocation}
-              className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100"
-              title="Get my location"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 616 0z" />
-              </svg>
-            </button>
-          </div>
-          
-          {/* Parking lot markers */}
-          {renderParkingLotMarkers()}
+          {renderMarkers()}
         </GoogleMap>
       )}
-      
+
+      {/* Loading State */}
+      {loading && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-red-50 p-4 rounded-lg shadow-lg">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
       {/* Parking Lots List */}
       <div className="hidden md:block md:absolute md:right-0 md:top-16 md:w-1/3 md:h-[calc(100vh-250px)] md:overflow-y-auto md:p-4">
         <h2 className="text-xl font-bold mb-4">Available Parking Lots</h2>
-        
+
         {!Array.isArray(parkingLots) || parkingLots.length === 0 ? (
           <p>No parking lots found in this area.</p>
         ) : (
           <div className="space-y-4">
             {parkingLots.map((lot) => (
-              <ParkingLotCard 
-                key={lot._id} 
-                lot={lot} 
+              <ParkingLotCard
+                key={lot._id}
+                lot={lot}
                 isSelected={selectedLot && selectedLot._id === lot._id}
-                onClick={() => handleCardClick(lot)}
+                onClick={() => handleMarkerClick(lot)}
               />
             ))}
           </div>

@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --primary-color: #3b82f6;
-  --secondary-color: #1e40af;
+  /* Color System */
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --secondary: #4f46e5;
+  --success: #059669;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
 }
 
+/* Base Styles */
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -12,9 +23,70 @@ html, body, #root {
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: #f3f4f6;
-  color: #1f2937;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--background);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Common Components */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50;
+}
+
+.btn-secondary {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+}
+
+.btn-outline {
+  @apply border border-gray-300 text-gray-700 hover:bg-gray-50;
+}
+
+.input {
+  @apply w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200;
+}
+
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100;
+}
+
+.section {
+  @apply p-6 space-y-4;
+}
+
+/* Form Styles */
+.form-group {
+  @apply space-y-2;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700;
+}
+
+/* Layout Components */
+.page-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+}
+
+.page-header {
+  @apply mb-8;
+}
+
+.page-title {
+  @apply text-2xl font-bold text-gray-900;
+}
+
+/* Animation Classes */
+.fade-in {
+  @apply transition-opacity duration-200;
+}
+
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
 }
 
 /* Remove the dark mode styles and center alignment */
